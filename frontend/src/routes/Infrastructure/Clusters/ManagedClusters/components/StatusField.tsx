@@ -1,7 +1,7 @@
 /* Copyright Contributors to the Open Cluster Management project */
-
+import { useContext } from 'react'
 import { Cluster, ClusterStatus, getLatestAnsibleJob } from '../../../../../resources'
-import { AcmButton, AcmInlineStatus, StatusType } from '@stolostron/ui-components'
+import { AcmButton, AcmInlineStatus, StatusType, Provider } from '@stolostron/ui-components'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import { Trans, useTranslation } from '../../../../../lib/acm-i18next'
 import { Link } from 'react-router-dom'
@@ -10,15 +10,23 @@ import { ansibleJobState, configMapsState } from '../../../../../atoms'
 import { NavigationPath } from '../../../../../NavigationPath'
 import { ClusterStatusMessageAlert } from './ClusterStatusMessageAlert'
 import { launchLogs, launchToYaml } from './HiveNotification'
+import { CIM } from 'openshift-assisted-ui-lib'
+import { ClusterContext } from '../../../../../routes/Infrastructure/Clusters/ManagedClusters/ClusterDetails/ClusterDetails'
+import { ButtonVariant } from '@patternfly/react-core'
+
+const {    
+    LogsDownloadButton,
+} = CIM
 
 export function StatusField(props: { cluster: Cluster }) {
     const { t } = useTranslation()
     const [configMaps] = useRecoilState(configMapsState)
     const [ansibleJobs] = useRecoilState(ansibleJobState)
     const latestJob = getLatestAnsibleJob(ansibleJobs, props.cluster?.name!)
+    const { agentClusterInstall } = useContext(ClusterContext)
 
     let type: StatusType
-
+    const isHybrid = props.cluster?.provider === Provider.hybrid
     switch (props.cluster?.status) {
         case ClusterStatus.ready:
             type = StatusType.healthy
@@ -122,6 +130,17 @@ export function StatusField(props: { cluster: Cluster }) {
             )
             break
         case ClusterStatus.creating:
+            if (isHybrid) {
+                hasAction = true
+                Action = () => (
+                    <LogsDownloadButton
+                    id="cluster-logs-button"
+                    agentClusterInstall={agentClusterInstall}
+                    variant={ButtonVariant.link}
+                    />
+                )
+            }            
+            break
         case ClusterStatus.destroying:
         case ClusterStatus.provisionfailed:
             hasAction = true
