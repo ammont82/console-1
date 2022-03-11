@@ -128,22 +128,11 @@ export function StatusField(props: { cluster: Cluster }) {
                 </AcmButton>
             )
             break
-        case ClusterStatus.creating:
-            if ( isHybrid ) {
-                hasAction = true
-                Action = () => (
-                    <LogsDownloadButton
-                    id="cluster-logs-button"
-                    agentClusterInstall={agentClusterInstall}
-                    variant={ButtonVariant.link}
-                    />
-                )
-            }            
-            break
+        case ClusterStatus.creating:        
         case ClusterStatus.destroying:
         case ClusterStatus.provisionfailed:
             hasAction = true
-            if ( isHybrid ) {
+            if ( isHybrid ) { //Correct link to installation logs in assisted clusters
                 Action = () => (
                     <LogsDownloadButton
                     id="cluster-logs-button"

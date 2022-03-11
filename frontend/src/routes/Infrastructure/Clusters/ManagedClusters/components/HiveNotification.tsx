@@ -68,8 +68,8 @@ export function HiveNotification() {
         return null
     }
 
-    if (isHybrid && cluster?.status === ClusterStatus.provisionfailed ||
-        cluster?.status === ClusterStatus.deprovisionfailed) {
+    if (isHybrid && (cluster?.status === ClusterStatus.provisionfailed ||
+        cluster?.status === ClusterStatus.deprovisionfailed)) {
             return null
     }
 
@@ -85,15 +85,7 @@ export function HiveNotification() {
                 }
                 title={
                     <Fragment>
-                        {t(`provision.notification.${cluster?.status}`)}
-                        {isHybrid && 
-                            <LogsDownloadButton
-                                id="cluster-logs-button"
-                                agentClusterInstall={cluster}
-                                variant={ButtonVariant.link}
-                            />                            
-                        }
-                        {!isHybrid &&
+                        {t(`provision.notification.${cluster?.status}`)}                      
                         <AcmButton
                             onClick={() => launchLogs(cluster!, configMaps)}
                             variant={ButtonVariant.link}
@@ -104,7 +96,6 @@ export function HiveNotification() {
                             {t('view.logs')}
                             <ExternalLinkAltIcon style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                         </AcmButton>
-                        }
                     </Fragment>
                 }
                 message={clusterProvisionStatus}
