@@ -11,7 +11,7 @@ import {
     getHivePod,
     getLatest,
 } from '../../../../../resources'
-import { AcmAlert, AcmButton } from '@stolostron/ui-components'
+import { AcmAlert, AcmButton, Provider } from '@stolostron/ui-components'
 import { AlertVariant, ButtonVariant } from '@patternfly/react-core'
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import { Fragment, useContext } from 'react'
@@ -19,6 +19,7 @@ import { useTranslation } from '../../../../../lib/acm-i18next'
 import { useRecoilState } from 'recoil'
 import { clusterProvisionsState, configMapsState } from '../../../../../atoms'
 import { ClusterContext } from '../ClusterDetails/ClusterDetails'
+import { CIM } from 'openshift-assisted-ui-lib'
 
 const useStyles = makeStyles({
     logsButton: {
@@ -30,6 +31,10 @@ const useStyles = makeStyles({
         },
     },
 })
+
+const {    
+    LogsDownloadButton,
+} = CIM
 
 export function HiveNotification() {
     const { cluster } = useContext(ClusterContext)
@@ -47,6 +52,8 @@ export function HiveNotification() {
     const clusterProvisionStatus =
         provisionFailedCondition?.status === 'True' ? provisionFailedCondition.message : cluster!.statusMessage
 
+    const isHybrid = cluster?.provider === Provider.hybrid
+
     const provisionStatuses: string[] = [
         ClusterStatus.destroying,
         ClusterStatus.provisionfailed,
@@ -59,6 +66,11 @@ export function HiveNotification() {
 
     if (cluster!.statusMessage) {
         return null
+    }
+
+    if (isHybrid && cluster?.status === ClusterStatus.provisionfailed ||
+        cluster?.status === ClusterStatus.deprovisionfailed) {
+            return null
     }
 
     return (
@@ -74,6 +86,14 @@ export function HiveNotification() {
                 title={
                     <Fragment>
                         {t(`provision.notification.${cluster?.status}`)}
+                        {isHybrid && 
+                            <LogsDownloadButton
+                                id="cluster-logs-button"
+                                agentClusterInstall={cluster}
+                                variant={ButtonVariant.link}
+                            />                            
+                        }
+                        {!isHybrid &&
                         <AcmButton
                             onClick={() => launchLogs(cluster!, configMaps)}
                             variant={ButtonVariant.link}
@@ -84,6 +104,7 @@ export function HiveNotification() {
                             {t('view.logs')}
                             <ExternalLinkAltIcon style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
                         </AcmButton>
+                        }
                     </Fragment>
                 }
                 message={clusterProvisionStatus}
