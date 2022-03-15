@@ -89,11 +89,10 @@ describe('Infrastructure Environments page', () => {
         render(<Component />)
 
         await waitForText('Infrastructure environments', true)
-        
+
         await waitForTestId('createInfraEnv')
 
         // is the infraEnv listed?
         await waitForText(infraEnvName, true)
-
     })
 })

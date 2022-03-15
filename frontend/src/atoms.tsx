@@ -101,6 +101,9 @@ import {
     NamespaceKind,
     Placement,
     PlacementApiVersionAlpha,
+    PlacementBinding,
+    PlacementBindingApiVersion,
+    PlacementBindingKind,
     PlacementDecision,
     PlacementDecisionApiVersion,
     PlacementDecisionKind,
@@ -108,9 +111,18 @@ import {
     PlacementRule,
     PlacementRuleApiVersion,
     PlacementRuleKind,
+    Policy,
+    PolicyApiVersion,
+    PolicyAutomation,
+    PolicyAutomationApiVersion,
+    PolicyAutomationKind,
+    PolicyKind,
     PolicyReport,
     PolicyReportApiVersion,
     PolicyReportKind,
+    PolicySet,
+    PolicySetApiVersion,
+    PolicySetKind,
     Secret,
     SecretApiVersion,
     SecretKind,
@@ -124,9 +136,6 @@ import {
     SubscriptionReportApiVersion,
     SubscriptionReportKind,
 } from './resources'
-import { PlacementBinding, PlacementBindingApiVersion, PlacementBindingKind } from './resources/placement-binding'
-import { Policy, PolicyApiVersion, PolicyKind } from './resources/policy'
-import { PolicySet, PolicySetApiVersion, PolicySetKind } from './resources/policy-set'
 
 let atomArrayKey = 0
 function AtomArray<T>() {
@@ -171,6 +180,7 @@ export const multiClusterHubState = AtomArray<MultiClusterHub>()
 export const namespacesState = AtomArray<Namespace>()
 export const nmStateConfigState = AtomArray<CIM.NMStateK8sResource>()
 export const policiesState = AtomArray<Policy>()
+export const policyAutomationState = AtomArray<PolicyAutomation>()
 export const policySetsState = AtomArray<PolicySet>()
 export const placementBindingsState = AtomArray<PlacementBinding>()
 export const placementsState = AtomArray<Placement>()
@@ -248,6 +258,7 @@ export function LoadData(props: { children?: ReactNode }) {
     const [, setMultiClusterHubs] = useRecoilState(multiClusterHubState)
     const [, setNamespaces] = useRecoilState(namespacesState)
     const [, setPoliciesState] = useRecoilState(policiesState)
+    const [, setPolicyAutomationState] = useRecoilState(policyAutomationState)
     const [, setPolicySetsState] = useRecoilState(policySetsState)
     const [, setPlacementBindingsState] = useRecoilState(placementBindingsState)
     const [, setPlacementsState] = useRecoilState(placementsState)
@@ -263,8 +274,9 @@ export function LoadData(props: { children?: ReactNode }) {
     const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = useMemo(() => {
         const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = {}
         function addSetter(apiVersion: string, kind: string, setter: SetterOrUpdater<any[]>) {
-            if (!setters[apiVersion]) setters[apiVersion] = {}
-            setters[apiVersion][kind] = setter
+            const groupVersion = apiVersion.split('/')[0]
+            if (!setters[groupVersion]) setters[groupVersion] = {}
+            setters[groupVersion][kind] = setter
         }
         addSetter(AgentClusterInstallApiVersion, AgentClusterInstallKind, setAgentClusterInstalls)
         addSetter(ApplicationApiVersion, ApplicationKind, setApplicationsState)
@@ -307,6 +319,7 @@ export function LoadData(props: { children?: ReactNode }) {
         addSetter(MultiClusterHubApiVersion, MultiClusterHubKind, setMultiClusterHubs)
         addSetter(NamespaceApiVersion, NamespaceKind, setNamespaces)
         addSetter(PolicyApiVersion, PolicyKind, setPoliciesState)
+        addSetter(PolicyAutomationApiVersion, PolicyAutomationKind, setPolicyAutomationState)
         addSetter(PolicySetApiVersion, PolicySetKind, setPolicySetsState)
         addSetter(PlacementBindingApiVersion, PlacementBindingKind, setPlacementBindingsState)
         addSetter(PolicyReportApiVersion, PolicyReportKind, setPolicyReports)
@@ -353,6 +366,7 @@ export function LoadData(props: { children?: ReactNode }) {
         setPlacementRulesState,
         setPlacementsState,
         setPoliciesState,
+        setPolicyAutomationState,
         setPolicyReports,
         setPolicySetsState,
         setSecrets,
@@ -369,21 +383,22 @@ export function LoadData(props: { children?: ReactNode }) {
 
             const resourceTypeMap = eventQueue?.reduce((resourceTypeMap, eventData) => {
                 const apiVersion = eventData.object.apiVersion
+                const groupVersion = apiVersion.split('/')[0]
                 const kind = eventData.object.kind
-                if (!resourceTypeMap[apiVersion]) resourceTypeMap[apiVersion] = {}
-                if (!resourceTypeMap[apiVersion][kind]) resourceTypeMap[apiVersion][kind] = []
-                resourceTypeMap[apiVersion][kind].push(eventData)
+                if (!resourceTypeMap[groupVersion]) resourceTypeMap[groupVersion] = {}
+                if (!resourceTypeMap[groupVersion][kind]) resourceTypeMap[groupVersion][kind] = []
+                resourceTypeMap[groupVersion][kind].push(eventData)
                 return resourceTypeMap
             }, {} as Record<string, Record<string, WatchEvent[]>>)
             eventQueue.length = 0
 
-            for (const apiVersion in resourceTypeMap) {
-                for (const kind in resourceTypeMap[apiVersion]) {
-                    const setter = setters[apiVersion]?.[kind]
+            for (const groupVersion in resourceTypeMap) {
+                for (const kind in resourceTypeMap[groupVersion]) {
+                    const setter = setters[groupVersion]?.[kind]
                     if (setter) {
                         setter((resources) => {
                             const newResources = [...resources]
-                            const watchEvents = resourceTypeMap[apiVersion][kind]
+                            const watchEvents = resourceTypeMap[groupVersion]?.[kind]
                             if (watchEvents) {
                                 for (const watchEvent of watchEvents) {
                                     const index = newResources.findIndex(
