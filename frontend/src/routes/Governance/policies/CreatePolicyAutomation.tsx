@@ -8,7 +8,7 @@ import { secretsState, usePolicies } from '../../../atoms'
 import { useTranslation } from '../../../lib/acm-i18next'
 import { NavigationPath } from '../../../NavigationPath'
 import {
-    IResource,
+    createResource,
     listAnsibleTowerJobs,
     PolicyAutomation,
     PolicyAutomationApiVersion,
@@ -32,37 +32,64 @@ export function CreatePolicyAutomation() {
     const credentials = useMemo(
         () =>
             secrets.filter(
-                (secret: Secret) => secret.metadata.labels?.['cluster.open-cluster-management.io/type'] === 'ans'
+                (secret: Secret) =>
+                    secret.metadata.labels?.['cluster.open-cluster-management.io/type'] === 'ans' &&
+                    !secret.metadata.labels?.['cluster.open-cluster-management.io/copiedFromNamespace'] &&
+                    !secret.metadata.labels?.['cluster.open-cluster-management.io/copiedFromSecretName']
             ),
         [secrets]
     )
 
-    // TODO If no credentials then wizard needs to have link to creds page
     return (
         <PolicyAutomationWizard
             title={t('Create policy automation')}
             policy={currentPolicy ?? {}}
             credentials={credentials}
-            resource={
-                {
-                    kind: PolicyAutomationKind,
-                    apiVersion: PolicyAutomationApiVersion,
-                    metadata: {
-                        name: `${currentPolicy?.metadata?.name ?? ''}-policy-automation`,
-                        namespace: currentPolicy?.metadata?.namespace ?? '',
-                    },
-                    spec: {
-                        policyRef: currentPolicy?.metadata?.name ?? '',
-                        mode: 'once',
-                        automationDef: { name: '', secret: '', type: 'AnsibleJob' },
-                    },
-                } as PolicyAutomation
-            }
+            createCredentialsCallback={() => window.open(NavigationPath.addCredentials)}
+            resource={{
+                kind: PolicyAutomationKind,
+                apiVersion: PolicyAutomationApiVersion,
+                metadata: {
+                    name: `${currentPolicy?.metadata?.name ?? ''}-policy-automation`,
+                    namespace: currentPolicy?.metadata?.namespace ?? '',
+                },
+                spec: {
+                    policyRef: currentPolicy?.metadata?.name ?? '',
+                    mode: 'once',
+                    automationDef: { name: '', secret: '', type: 'AnsibleJob' },
+                },
+            }}
             onCancel={() => history.push(NavigationPath.policies)}
             onSubmit={(data) => {
-                const resource = data as IResource
+                const resource = data as PolicyAutomation
                 return reconcileResources([resource], []).then(() => {
                     if (resource) {
+                        // Copy the cedential to the namespace of the policy
+                        const credToCopy: Secret[] = secrets.filter(
+                            (secret: Secret) =>
+                                secret.metadata.labels?.['cluster.open-cluster-management.io/type'] === 'ans' &&
+                                secret.metadata.name === resource.spec.automationDef.secret
+                        )
+                        const credExists = credToCopy.find(
+                            (cred) => cred.metadata.namespace === resource.metadata.namespace
+                        )
+                        if (!credExists) {
+                            createResource<Secret>({
+                                ...credToCopy[0],
+                                metadata: {
+                                    annotations: credToCopy[0].metadata.annotations,
+                                    name: credToCopy[0].metadata.name,
+                                    namespace: resource.metadata.namespace!,
+                                    labels: {
+                                        'cluster.open-cluster-management.io/type': 'ans',
+                                        'cluster.open-cluster-management.io/copiedFromNamespace':
+                                            resource.metadata.namespace!,
+                                        'cluster.open-cluster-management.io/copiedFromSecretName':
+                                            resource.metadata.name!,
+                                    },
+                                },
+                            })
+                        }
                         toast.addAlert({
                             title: t('Policy automation created'),
                             message: t('{{name}} was successfully created.', { name: resource.metadata?.name }),
@@ -73,7 +100,6 @@ export function CreatePolicyAutomation() {
                     history.push(window.history?.state?.state?.from ?? NavigationPath.policies)
                 })
             }}
-            // TODO credential should be Secret type not IResource
             getAnsibleJobsCallback={async (credential: any) => {
                 const host = Buffer.from(credential.data.host || '', 'base64').toString('ascii')
                 const token = Buffer.from(credential.data.token || '', 'base64').toString('ascii')
