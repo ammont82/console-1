@@ -165,7 +165,6 @@ export const getControlData = (
                 logo: <AcmIcon icon={AcmIconVariant.hybrid} />, // TODO(mlibra): change icon (requests graphics by UXD)
                 title: 'cluster.create.cim.subtitle',
                 tooltip: 'cluster.create.cim.tooltip',
-                text: <TechnologyPreview position={PreviewBadgePosition.inline} className="pf-u-font-size-xs" />,
                 change: {
                     insertControlData: controlDataCIM,
                     replacements: {},
@@ -178,7 +177,6 @@ export const getControlData = (
                 logo: <ConnectedIcon />,
                 title: 'cluster.create.ai.subtitle',
                 tooltip: 'cluster.create.ai.tooltip',
-                text: <TechnologyPreview position={PreviewBadgePosition.inline} className="pf-u-font-size-xs" />,
                 change: {
                     insertControlData: controlDataAI,
                     replacements: {},

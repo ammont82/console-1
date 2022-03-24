@@ -4,7 +4,6 @@ import { PageSection, Text, TextContent, TextVariants } from '@patternfly/react-
 import { ExternalLinkAltIcon } from '@patternfly/react-icons'
 import { cellWidth } from '@patternfly/react-table'
 import { AcmDropdown, AcmEmptyState, AcmTable, IAcmRowAction, IAcmTableColumn } from '@stolostron/ui-components'
-import { TFunction } from 'i18next'
 import _ from 'lodash'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useHistory } from 'react-router'
@@ -15,12 +14,11 @@ import {
     applicationsState,
     argoApplicationsState,
     channelsState,
-    managedClustersState,
     placementRulesState,
     subscriptionsState,
 } from '../../atoms'
-import { useTranslation } from '../../lib/acm-i18next'
-import { DOC_LINKS } from '../../lib/doc-util'
+import { Trans, useTranslation } from '../../lib/acm-i18next'
+import { DOC_LINKS, viewDocumentation } from '../../lib/doc-util'
 import { canUser } from '../../lib/rbac-util'
 import { queryRemoteArgoApps } from '../../lib/search'
 import { useQuery } from '../../lib/useQuery'
@@ -51,6 +49,7 @@ import {
     hostingSubAnnotationStr,
     isResourceTypeOf,
 } from './helpers/resource-helper'
+import { useAllClusters } from '../Infrastructure/Clusters/ManagedClusters/components/useAllClusters'
 
 const gitBranchAnnotationStr = 'apps.open-cluster-management.io/git-branch'
 const gitPathAnnotationStr = 'apps.open-cluster-management.io/git-path'
@@ -72,18 +71,6 @@ function getResourceType(resource: IResource) {
     }
 }
 
-function getEmptyMessage(t: TFunction) {
-    return (
-        <p>
-            <span
-                dangerouslySetInnerHTML={{ __html: t('Click the Create application button to create your resource.') }}
-            />
-            <br />
-            {t('View the documentation for more information.')}
-        </p>
-    )
-}
-
 export function getAppSetApps(argoApps: IResource[], appSetName: string) {
     const appSetApps: string[] = []
 
@@ -102,10 +89,6 @@ export function getAnnotation(resource: IResource, annotationString: string) {
 
 function getAppNamespace(resource: IResource) {
     let castType
-    if (resource.kind === ApplicationSetKind) {
-        castType = resource as ApplicationSet
-        return castType.spec.template?.spec?.destination?.namespace
-    }
     if (resource.apiVersion === ArgoApplicationApiVersion && resource.kind === ArgoApplicationKind) {
         castType = resource as ArgoApplication
         return castType.spec.destination.namespace
@@ -191,8 +174,17 @@ export default function ApplicationsOverview() {
     const [subscriptions] = useRecoilState(subscriptionsState)
     const [channels] = useRecoilState(channelsState)
     const [placementRules] = useRecoilState(placementRulesState)
-    const [managedClusters] = useRecoilState(managedClustersState)
-    const localCluster = managedClusters.find((cls) => cls.metadata.name === localClusterStr)
+
+    let managedClusters = useAllClusters()
+    managedClusters = managedClusters.filter((cluster) => {
+        // don't show clusters in cluster pools in table
+        if (cluster.hive.clusterPool) {
+            return cluster.hive.clusterClaimName !== undefined
+        } else {
+            return true
+        }
+    })
+    const localCluster = managedClusters.find((cls) => cls.name === localClusterStr)
     const [modalProps, setModalProps] = useState<IDeleteResourceModalProps | { open: false }>({
         open: false,
     })
@@ -733,9 +725,21 @@ export default function ApplicationsOverview() {
                 emptyState={
                     <AcmEmptyState
                         key="appOverviewEmptyState"
-                        title={t('You don’t have any applications')}
-                        message={getEmptyMessage(t)}
-                        action={appCreationButton()}
+                        title={t("You don't have any applications")}
+                        message={
+                            <Text>
+                                <Trans
+                                    i18nKey="Click <bold>Create application</bold> to create your resource."
+                                    components={{ bold: <strong /> }}
+                                />
+                            </Text>
+                        }
+                        action={
+                            <>
+                                {appCreationButton()}
+                                <TextContent>{viewDocumentation(DOC_LINKS.MANAGE_APPLICATIONS, t)}</TextContent>
+                            </>
+                        }
                     />
                 }
                 rowActionResolver={rowActionResolver}
