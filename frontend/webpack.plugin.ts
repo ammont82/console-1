@@ -8,6 +8,7 @@ import MonacoWebpackPlugin from 'monaco-editor-webpack-plugin'
 import webpack from 'webpack'
 import { Configuration as DevServerConfiguration } from 'webpack-dev-server'
 
+
 module.exports = function (env: any, argv: { hot?: boolean; mode: string | undefined }) {
     const isProduction = argv.mode === 'production' || argv.mode === undefined
     const isDevelopment = !isProduction
@@ -81,7 +82,7 @@ module.exports = function (env: any, argv: { hot?: boolean; mode: string | undef
                 filename: '[name].[contenthash:8].css',
                 chunkFilename: '[id].[contenthash:8].css',
                 ignoreOrder: false, // Enable to remove warnings about conflicting order
-            }),
+            }),            
             new CopyPlugin({
                 patterns: [
                     {
@@ -90,7 +91,15 @@ module.exports = function (env: any, argv: { hot?: boolean; mode: string | undef
                             const { groups: { locale } } = absoluteFilename.match(/locales\/(?<locale>.+)\/translation.json/)
                             return `locales/${locale}/plugin__${env.plugin}.json`
                         },
-                    },
+                    }, 
+                    {
+                        from: `../../node_modules/openshift-assisted-ui-lib/dist/locales/*/translation.json`,
+                        to: ({ absoluteFilename }) => {
+                            const { groups: { locale } } = absoluteFilename.match(/locales\/(?<locale>.+)\/translation.json/)
+                            return `locales/${locale}/plugin__${env.plugin}.json`
+                        },
+                    },       
+                    
                 ],
             }),
         ].filter(Boolean) as webpack.WebpackPluginInstance[],

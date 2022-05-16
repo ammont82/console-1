@@ -54,5 +54,8 @@
         "tabWidth": 4,
         "semi": false,
         "singleQuote": true
+    },
+    "dependencies": {
+        "webpack-concat-plugin": "^3.0.0"
     }
 }
