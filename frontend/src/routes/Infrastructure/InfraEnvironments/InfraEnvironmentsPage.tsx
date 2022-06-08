@@ -190,9 +190,10 @@ const InfraEnvsTable: React.FC<InfraEnvsTableProps> = ({ infraEnvs, agents }) =>
                             const infraAgents = agents.filter((a) =>
                                 isMatch(a.metadata.labels, infraEnv.status?.agentLabelSelector?.matchLabels)
                             )
+                            console.log(infraAgents);
                             const errorAgents = infraAgents.filter((a) => getAgentStatus(a).status.key === 'error')
                             const warningAgents = infraAgents.filter((a) =>
-                                ['pending-for-input', 'insufficient', 'insufficient-unbound'].includes(
+                                ['pending-for-input', 'insufficient', 'insufficient-unbound','disconnected-unbound'].includes(
                                     getAgentStatus(a).status.key
                                 )
                             )
@@ -321,7 +322,7 @@ const InfraEnvsTable: React.FC<InfraEnvsTableProps> = ({ infraEnvs, agents }) =>
                                                 (a) => getAgentStatus(a).status.key === 'error'
                                             )
                                             const warningAgents = infraAgents.filter((a) =>
-                                                ['pending-for-input', 'insufficient', 'insufficient-unbound'].includes(
+                                                ['pending-for-input', 'insufficient', 'insufficient-unbound','disconnected-unbound'].includes(
                                                     getAgentStatus(a).status.key
                                                 )
                                             )
