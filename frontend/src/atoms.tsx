@@ -149,6 +149,7 @@ import {
     NodePoolKind,
     NodePoolApiVersion,
 } from './resources'
+import { AgentMachine, AgentMachineApiVersion, AgentMachineKind } from './resources/agent-machine'
 let atomArrayKey = 0
 function AtomArray<T>() {
     return atom<T[]>({ key: (++atomArrayKey).toString(), default: [] })
@@ -211,6 +212,7 @@ export const subscriptionReportsState = AtomArray<SubscriptionReport>()
 export const userPreferencesState = AtomArray<UserPreference>()
 export const hostedClustersState = AtomArray<HostedClusterK8sResource>()
 export const nodePoolsState = AtomArray<NodePool>()
+export const agentMachinesState = AtomArray<AgentMachine>()
 
 export const settingsState = atom<Settings>({ key: 'settings', default: {} })
 
@@ -295,6 +297,7 @@ export function LoadData(props: { children?: ReactNode }) {
     const [, setUserPreferencesState] = useRecoilState(userPreferencesState)
     const [, setHostedClustersState] = useRecoilState(hostedClustersState)
     const [, setNodePoolsState] = useRecoilState(nodePoolsState)
+    const [, setAgentMachinesState] = useRecoilState(agentMachinesState)
 
     const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = useMemo(() => {
         const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = {}
@@ -354,6 +357,7 @@ export function LoadData(props: { children?: ReactNode }) {
         addSetter(UserPreferenceApiVersion, UserPreferenceKind, setUserPreferencesState)
         addSetter(HostedClusterApiVersion, HostedClusterKind, setHostedClustersState)
         addSetter(NodePoolApiVersion, NodePoolKind, setNodePoolsState)
+        addSetter(AgentMachineApiVersion, AgentMachineKind, setAgentMachinesState)
         return setters
     }, [
         setAgentClusterInstalls,

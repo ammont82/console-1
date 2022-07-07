@@ -12,7 +12,6 @@ import {
     ManagedClusterKind,
     NodePoolApiVersion,
     NodePoolKind,
-    patchResource,
     ResourceError,
     SecretApiVersion,
     SecretKind,
@@ -52,24 +51,10 @@ export function deleteHypershiftCluster(cluster: Cluster) {
         })
     })
 
-    const agentPatches =
-        cluster.hypershift?.agents?.map((a) => {
-            const newLabels = { ...(a.metadata.labels || {}) }
-            delete newLabels['agentclusterinstalls.extensions.hive.openshift.io/nodePool']
-            delete newLabels['agentclusterinstalls.extensions.hive.openshift.io/nodePoolNs']
-            return patchResource(a, [
-                {
-                    op: a.metadata.labels ? 'replace' : 'add',
-                    path: '/metadata/labels',
-                    value: newLabels,
-                },
-            ])
-        }) || []
-
     const deletePromises = resources.map((resource) => deleteResource(resource))
 
-    const promises = Promise.allSettled([...deletePromises, ...agentPatches].map((result) => result.promise))
-    const abort = () => [...deletePromises, ...agentPatches].forEach((result) => result.abort())
+    const promises = Promise.allSettled(deletePromises.map((result) => result.promise))
+    const abort = () => deletePromises.forEach((result) => result.abort())
 
     return {
         promise: new Promise((resolve, reject) => {

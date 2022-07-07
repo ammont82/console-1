@@ -100,9 +100,14 @@ spec:
     type: Agent
     agent:
       agentLabelSelector:
+        {{#if this.agentLabels.length}}
         matchLabels:
-          'agentclusterinstalls.extensions.hive.openshift.io/nodePool': '{{{this.name}}}'
-          'agentclusterinstalls.extensions.hive.openshift.io/nodePoolNs': '{{{this.clusterName}}}'
+          {{#each this.agentLabels}}
+          '{{{this.key}}}': '{{{this.value}}}'
+          {{/each}}
+        {{else}}
+        matchLabels: {}
+        {{/if}}
   release:
     image: {{{this.releaseImage}}}
 

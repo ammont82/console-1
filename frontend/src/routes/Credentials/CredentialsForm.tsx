@@ -85,7 +85,7 @@ const providerGroup: Record<string, string> = {
     [Provider.baremetal]: ProviderGroup.Datacenter,
     [Provider.vmware]: ProviderGroup.Datacenter,
     [Provider.hybrid]: ProviderGroup.Datacenter,
-    [Provider.hybrid]: ProviderGroup.Datacenter,
+    [Provider.hypershift]: ProviderGroup.Datacenter,
 }
 
 export default function CredentialsFormPage() {

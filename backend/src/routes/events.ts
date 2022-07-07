@@ -131,6 +131,7 @@ const definitions: IWatchOptions[] = [
     { kind: 'UserPreference', apiVersion: 'console.open-cluster-management.io/v1' },
     { kind: 'HostedCluster', apiVersion: 'hypershift.openshift.io/v1alpha1' },
     { kind: 'NodePool', apiVersion: 'hypershift.openshift.io/v1alpha1' },
+    { kind: 'AgentMachine', apiVersion: 'capi-provider.agent-install.openshift.io/v1alpha1' },
 ]
 
 export function startWatching(): void {

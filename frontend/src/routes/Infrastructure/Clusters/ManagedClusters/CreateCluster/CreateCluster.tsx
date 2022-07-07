@@ -19,7 +19,6 @@ import {
     managedClustersState,
     secretsState,
     settingsState,
-    agentsState,
 } from '../../../../../atoms'
 import { clusterCuratorTemplatesValue } from '../../../../../selectors'
 import { useTranslation } from '../../../../../lib/acm-i18next'
@@ -35,7 +34,6 @@ import {
     ProviderConnection,
     Secret,
     unpackProviderConnection,
-    patchResource,
 } from '../../../../../resources'
 import { useCanJoinClusterSets, useMustJoinClusterSet } from '../../ClusterSets/components/useCanJoinClusterSets'
 // template/data
@@ -114,7 +112,6 @@ export default function CreateClusterPage() {
     const [agentClusterInstalls] = useRecoilState(agentClusterInstallsState)
     const [infraEnvs] = useRecoilState(infraEnvironmentsState)
     const [warning, setWarning] = useState<WarningContextType>()
-    const [agents] = useRecoilState(agentsState)
     const hypershiftValues = useHypershiftContextValues()
 
     // Is there a way how to get this without fetching all InfraEnvs?
@@ -160,6 +157,7 @@ export default function CreateClusterPage() {
                 })
                 return 'ERROR'
             } else {
+                /*
                 // patch hypershift agents
                 const hypershiftAgentNs = get(map, 'HostedCluster.spec.platform.agent.agentNamespace')
                 if (hypershiftAgentNs) {
@@ -187,6 +185,7 @@ export default function CreateClusterPage() {
                     )
                     nodePoolPatches && (await Promise.allSettled(nodePoolPatches))
                 }
+                */
 
                 const isClusterCurator = (resource: any) => {
                     return resource.kind === 'ClusterCurator'

@@ -3,7 +3,7 @@ import { HostedClusterK8sResource } from 'openshift-assisted-ui-lib/cim'
 import * as React from 'react'
 import jsYaml from 'js-yaml'
 import { getResource } from '../../../../../../resources'
-import { AcmInlineCopy } from '@stolostron/ui-components'
+import { AcmInlineCopy } from '../../../../../../ui-components'
 
 type HypershiftKubeAPIProps = {
     hostedCluster: HostedClusterK8sResource

@@ -8,7 +8,6 @@ import {
     getConsoleUrl as getConsoleUrlAI,
     getClusterApiUrl as getClusterApiUrlAI,
     AgentClusterInstallK8sResource,
-    AgentK8sResource,
 } from 'openshift-assisted-ui-lib/cim'
 import { CertificateSigningRequest, CSR_CLUSTER_LABEL } from '../certificate-signing-requests'
 import { ClusterClaim } from '../cluster-claim'
@@ -103,7 +102,6 @@ export type Cluster = {
     hypershift?: {
         nodePools: NodePool[] | undefined
         secrets: string[]
-        agents: AgentK8sResource[] | undefined
     }
 }
 
@@ -170,8 +168,7 @@ export function mapClusters(
     clusterCurators: ClusterCurator[] = [],
     agentClusterInstalls: AgentClusterInstallK8sResource[] = [],
     hostedClusters: HostedCluster[] = [],
-    nodePools: NodePool[] = [],
-    agents: AgentK8sResource[] = []
+    nodePools: NodePool[] = []
 ) {
     const mcs = managedClusters.filter((mc) => mc.metadata?.name) ?? []
     const uniqueClusterNames = Array.from(
@@ -207,8 +204,7 @@ export function mapClusters(
             clusterCurator,
             agentClusterInstall,
             hostedCluster,
-            nodePools,
-            agents
+            nodePools
         )
     })
 }
@@ -223,8 +219,7 @@ export function getCluster(
     clusterCurator: ClusterCurator | undefined,
     agentClusterInstall: AgentClusterInstallK8sResource | undefined,
     hostedCluster: HostedCluster | undefined,
-    nodePools: NodePool[] | undefined,
-    agents: AgentK8sResource[] | undefined
+    nodePools: NodePool[] | undefined
 ): Cluster {
     const { status, statusMessage } = getClusterStatus(
         clusterDeployment,
@@ -267,7 +262,7 @@ export function getCluster(
         nodes: getNodes(managedClusterInfo),
         kubeApiServer: getKubeApiServer(clusterDeployment, managedClusterInfo, agentClusterInstall),
         consoleURL: getConsoleUrl(clusterDeployment, managedClusterInfo, managedCluster, agentClusterInstall),
-        isHive: !!clusterDeployment,
+        isHive: !!clusterDeployment && !hostedCluster,
         isHypershift: !!hostedCluster,
         isManaged: !!managedCluster || !!managedClusterInfo,
         isCurator: !!clusterCurator,
@@ -283,10 +278,10 @@ export function getCluster(
             managedCluster?.metadata.creationTimestamp ??
             managedClusterInfo?.metadata.creationTimestamp,
         kubeconfig:
-            clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef.name ||
+            clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef?.name ||
             hostedCluster?.status?.kubeconfig?.name,
         kubeadmin:
-            clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef.name ||
+            clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef?.name ||
             hostedCluster?.status?.kubeadminPassword?.name,
         hypershift: hostedCluster
             ? {
@@ -294,19 +289,6 @@ export function getCluster(
                   secrets: [hostedCluster.spec?.sshKey?.name || '', hostedCluster.spec?.pullSecret?.name || ''].filter(
                       (name) => !!name
                   ),
-                  agents: agents?.filter((a) => {
-                      const nodePoolName =
-                          a.metadata.labels['agentclusterinstalls.extensions.hive.openshift.io/nodePool']
-                      const nodePoolNs =
-                          a.metadata.labels['agentclusterinstalls.extensions.hive.openshift.io/nodePoolNs']
-                      if (nodePoolName && nodePoolNs) {
-                          return clusterNodePools?.some(
-                              (np) => np.metadata.name === nodePoolName && np.metadata.namespace === nodePoolNs
-                          )
-                      } else {
-                          return false
-                      }
-                  }),
               }
             : undefined,
     }
@@ -393,8 +375,8 @@ export function getHiveConfig(clusterDeployment?: ClusterDeployment, clusterClai
         clusterPoolNamespace: clusterDeployment?.spec?.clusterPoolRef?.namespace,
         clusterClaimName: clusterDeployment?.spec?.clusterPoolRef?.claimName,
         secrets: {
-            kubeconfig: clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef.name,
-            kubeadmin: clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef.name,
+            kubeconfig: clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef?.name,
+            kubeadmin: clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef?.name,
             installConfig: clusterDeployment?.spec?.provisioning?.installConfigSecretRef?.name,
         },
         lifetime: clusterClaim?.spec?.lifetime,
