@@ -1,12 +1,12 @@
 /* Copyright Contributors to the Open Cluster Management project */
 import { CIM } from 'openshift-assisted-ui-lib'
+import { HostedClusterK8sResource } from 'openshift-assisted-ui-lib/cim'
 import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
 import { atom, SetterOrUpdater, useRecoilState } from 'recoil'
 import { LoadingPage } from './components/LoadingPage'
 import {
     AgentClusterInstallApiVersion,
     AgentClusterInstallKind,
-    AgentClusterInstallVersion,
     AgentKind,
     AgentKindVersion,
     AnsibleJob,
@@ -143,7 +143,13 @@ import {
     UserPreference,
     UserPreferenceApiVersion,
     UserPreferenceKind,
+    HostedClusterKind,
+    HostedClusterApiVersion,
+    NodePool,
+    NodePoolKind,
+    NodePoolApiVersion,
 } from './resources'
+import { AgentMachine, AgentMachineApiVersion, AgentMachineKind } from './resources/agent-machine'
 let atomArrayKey = 0
 function AtomArray<T>() {
     return atom<T[]>({ key: (++atomArrayKey).toString(), default: [] })
@@ -204,6 +210,9 @@ export const subscriptionsState = AtomArray<Subscription>()
 export const subscriptionOperatorsState = AtomArray<SubscriptionOperator>()
 export const subscriptionReportsState = AtomArray<SubscriptionReport>()
 export const userPreferencesState = AtomArray<UserPreference>()
+export const hostedClustersState = AtomArray<HostedClusterK8sResource>()
+export const nodePoolsState = AtomArray<NodePool>()
+export const agentMachinesState = AtomArray<AgentMachine>()
 
 export const settingsState = atom<Settings>({ key: 'settings', default: {} })
 
@@ -286,6 +295,9 @@ export function LoadData(props: { children?: ReactNode }) {
     const [, setSubscriptionOperatorsState] = useRecoilState(subscriptionOperatorsState)
     const [, setSubscriptionReportsState] = useRecoilState(subscriptionReportsState)
     const [, setUserPreferencesState] = useRecoilState(userPreferencesState)
+    const [, setHostedClustersState] = useRecoilState(hostedClustersState)
+    const [, setNodePoolsState] = useRecoilState(nodePoolsState)
+    const [, setAgentMachinesState] = useRecoilState(agentMachinesState)
 
     const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = useMemo(() => {
         const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = {}
@@ -308,7 +320,6 @@ export function LoadData(props: { children?: ReactNode }) {
         addSetter(ApplicationSetApiVersion, ApplicationSetKind, setApplicationSetsState)
         addSetter(ArgoApplicationApiVersion, ArgoApplicationKind, setArgoApplicationsState)
         addSetter('argoproj.io/v1alpha1', 'argoCDs', setArgoCDsState)
-        addSetter(AgentClusterInstallVersion, AgentClusterInstallKind, setAgentClusterInstalls)
         addSetter(AgentKindVersion, AgentKind, setAgents)
         addSetter(AnsibleJobApiVersion, AnsibleJobKind, setAnsibleJobs)
         addSetter(BareMetalAssetApiVersion, BareMetalAssetKind, setBareMetalAssets)
@@ -344,6 +355,9 @@ export function LoadData(props: { children?: ReactNode }) {
         addSetter(SecretApiVersion, SecretKind, setSecrets)
         addSetter(SubmarinerConfigApiVersion, SubmarinerConfigKind, setSubmarinerConfigs)
         addSetter(UserPreferenceApiVersion, UserPreferenceKind, setUserPreferencesState)
+        addSetter(HostedClusterApiVersion, HostedClusterKind, setHostedClustersState)
+        addSetter(NodePoolApiVersion, NodePoolKind, setNodePoolsState)
+        addSetter(AgentMachineApiVersion, AgentMachineKind, setAgentMachinesState)
         return setters
     }, [
         setAgentClusterInstalls,
@@ -395,6 +409,8 @@ export function LoadData(props: { children?: ReactNode }) {
         setSubscriptionsState,
         setSubscriptionOperatorsState,
         setUserPreferencesState,
+        setHostedClustersState,
+        setNodePoolsState,
     ])
 
     useEffect(() => {

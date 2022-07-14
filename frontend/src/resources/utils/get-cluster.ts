@@ -20,6 +20,8 @@ import { managedClusterSetLabel } from '../managed-cluster-set'
 import { AddonStatus } from './get-addons'
 import { getLatest } from './utils'
 import { AgentClusterInstallKind } from '../agent-cluster-install'
+import { HostedCluster } from '../hosted-cluster'
+import { NodePool } from '../node-pool'
 
 export enum ClusterStatus {
     'pending' = 'pending',
@@ -94,6 +96,13 @@ export type Cluster = {
     }
     isSNOCluster: boolean
     creationTimestamp?: string
+    isHypershift: boolean
+    kubeconfig?: string
+    kubeadmin?: string
+    hypershift?: {
+        nodePools: NodePool[] | undefined
+        secrets: string[]
+    }
 }
 
 export type DistributionInfo = {
@@ -105,8 +114,6 @@ export type DistributionInfo = {
 }
 
 export type HiveSecrets = {
-    kubeconfig?: string
-    kubeadmin?: string
     installConfig?: string
 }
 
@@ -159,7 +166,9 @@ export function mapClusters(
     managedClusterAddOns: ManagedClusterAddOn[] = [],
     clusterClaims: ClusterClaim[] = [],
     clusterCurators: ClusterCurator[] = [],
-    agentClusterInstalls: AgentClusterInstallK8sResource[] = []
+    agentClusterInstalls: AgentClusterInstallK8sResource[] = [],
+    hostedClusters: HostedCluster[] = [],
+    nodePools: NodePool[] = []
 ) {
     const mcs = managedClusters.filter((mc) => mc.metadata?.name) ?? []
     const uniqueClusterNames = Array.from(
@@ -167,6 +176,7 @@ export function mapClusters(
             ...clusterDeployments.map((cd) => cd.metadata.name),
             ...managedClusterInfos.map((mc) => mc.metadata.name),
             ...mcs.map((mc) => mc.metadata.name),
+            ...hostedClusters.map((hc) => hc.metadata.name),
         ])
     )
     return uniqueClusterNames.map((cluster) => {
@@ -183,6 +193,7 @@ export function mapClusters(
                     aci.metadata.namespace === clusterDeployment.metadata.namespace &&
                     aci.metadata.name === clusterDeployment?.spec?.clusterInstallRef?.name
             )
+        const hostedCluster = hostedClusters.find((hc) => hc.metadata.name === cluster)
         return getCluster(
             managedClusterInfo,
             clusterDeployment,
@@ -191,7 +202,9 @@ export function mapClusters(
             addons,
             clusterClaim,
             clusterCurator,
-            agentClusterInstall
+            agentClusterInstall,
+            hostedCluster,
+            nodePools
         )
     })
 }
@@ -204,7 +217,9 @@ export function getCluster(
     managedClusterAddOns: ManagedClusterAddOn[],
     clusterClaim: ClusterClaim | undefined,
     clusterCurator: ClusterCurator | undefined,
-    agentClusterInstall: AgentClusterInstallK8sResource | undefined
+    agentClusterInstall: AgentClusterInstallK8sResource | undefined,
+    hostedCluster: HostedCluster | undefined,
+    nodePools: NodePool[] | undefined
 ): Cluster {
     const { status, statusMessage } = getClusterStatus(
         clusterDeployment,
@@ -214,26 +229,41 @@ export function getCluster(
         managedClusterAddOns,
         clusterCurator,
         agentClusterInstall,
-        clusterClaim
+        clusterClaim,
+        hostedCluster
+    )
+
+    const clusterNodePools = nodePools?.filter(
+        (np) =>
+            np.spec.clusterName === hostedCluster?.metadata.name &&
+            np.metadata.namespace === hostedCluster?.metadata.namespace
     )
     return {
-        name: clusterDeployment?.metadata.name ?? managedCluster?.metadata.name ?? managedClusterInfo?.metadata.name,
+        name:
+            clusterDeployment?.metadata.name ??
+            managedCluster?.metadata.name ??
+            managedClusterInfo?.metadata.name ??
+            hostedCluster?.metadata?.name,
         displayName:
             // clusterDeployment?.spec?.clusterPoolRef?.claimName ??
-            clusterDeployment?.metadata.name ?? managedCluster?.metadata.name ?? managedClusterInfo?.metadata.name,
+            clusterDeployment?.metadata.name ??
+            managedCluster?.metadata.name ??
+            managedClusterInfo?.metadata.name ??
+            hostedCluster?.metadata?.name,
         namespace:
             managedCluster?.metadata.name ??
             clusterDeployment?.metadata.namespace ??
             managedClusterInfo?.metadata.namespace,
         status,
         statusMessage,
-        provider: getProvider(managedClusterInfo, managedCluster, clusterDeployment),
+        provider: getProvider(managedClusterInfo, managedCluster, clusterDeployment, hostedCluster),
         distribution: getDistributionInfo(managedClusterInfo, managedCluster, clusterDeployment, clusterCurator),
         labels: managedCluster?.metadata.labels ?? managedClusterInfo?.metadata.labels,
         nodes: getNodes(managedClusterInfo),
         kubeApiServer: getKubeApiServer(clusterDeployment, managedClusterInfo, agentClusterInstall),
         consoleURL: getConsoleUrl(clusterDeployment, managedClusterInfo, managedCluster, agentClusterInstall),
-        isHive: !!clusterDeployment,
+        isHive: !!clusterDeployment && !hostedCluster,
+        isHypershift: !!hostedCluster,
         isManaged: !!managedCluster || !!managedClusterInfo,
         isCurator: !!clusterCurator,
         isSNOCluster: getIsSNOCluster(agentClusterInstall),
@@ -247,6 +277,20 @@ export function getCluster(
             clusterDeployment?.metadata.creationTimestamp ??
             managedCluster?.metadata.creationTimestamp ??
             managedClusterInfo?.metadata.creationTimestamp,
+        kubeconfig:
+            clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef?.name ||
+            hostedCluster?.status?.kubeconfig?.name,
+        kubeadmin:
+            clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef?.name ||
+            hostedCluster?.status?.kubeadminPassword?.name,
+        hypershift: hostedCluster
+            ? {
+                  nodePools: clusterNodePools,
+                  secrets: [hostedCluster.spec?.sshKey?.name || '', hostedCluster.spec?.pullSecret?.name || ''].filter(
+                      (name) => !!name
+                  ),
+              }
+            : undefined,
     }
 }
 
@@ -331,8 +375,8 @@ export function getHiveConfig(clusterDeployment?: ClusterDeployment, clusterClai
         clusterPoolNamespace: clusterDeployment?.spec?.clusterPoolRef?.namespace,
         clusterClaimName: clusterDeployment?.spec?.clusterPoolRef?.claimName,
         secrets: {
-            kubeconfig: clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef.name,
-            kubeadmin: clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef.name,
+            kubeconfig: clusterDeployment?.spec?.clusterMetadata?.adminKubeconfigSecretRef?.name,
+            kubeadmin: clusterDeployment?.spec?.clusterMetadata?.adminPasswordSecretRef?.name,
             installConfig: clusterDeployment?.spec?.provisioning?.installConfigSecretRef?.name,
         },
         lifetime: clusterClaim?.spec?.lifetime,
@@ -342,8 +386,13 @@ export function getHiveConfig(clusterDeployment?: ClusterDeployment, clusterClai
 export function getProvider(
     managedClusterInfo?: ManagedClusterInfo,
     managedCluster?: ManagedCluster,
-    clusterDeployment?: ClusterDeployment
+    clusterDeployment?: ClusterDeployment,
+    hostedCluster?: HostedCluster
 ) {
+    if (hostedCluster) {
+        return Provider.hypershift
+    }
+
     const clusterInstallRef = clusterDeployment?.spec?.clusterInstallRef
     if (clusterInstallRef?.kind === AgentClusterInstallKind) {
         return Provider.hybrid
@@ -686,7 +735,8 @@ export function getClusterStatus(
     managedClusterAddOns: ManagedClusterAddOn[],
     clusterCurator: ClusterCurator | undefined,
     agentClusterInstall: AgentClusterInstallK8sResource | undefined,
-    clusterClaim: ClusterClaim | undefined
+    clusterClaim: ClusterClaim | undefined,
+    hostedCluster: HostedCluster | undefined
 ) {
     let statusMessage: string | undefined
 
@@ -757,6 +807,15 @@ export function getClusterStatus(
                 statusMessage = clusterCurator.status?.conditions[0].message
                 return { status: ccStatus, statusMessage }
             }
+        }
+    }
+
+    if (hostedCluster) {
+        if (hostedCluster?.metadata?.deletionTimestamp) {
+            return { status: ClusterStatus.destroying }
+        }
+        if (hostedCluster?.status?.conditions?.find((c) => c.type === 'Available')?.status === 'False') {
+            return { status: ClusterStatus.creating }
         }
     }
 
