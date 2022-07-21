@@ -8,6 +8,8 @@ import {
     getConsoleUrl as getConsoleUrlAI,
     getClusterApiUrl as getClusterApiUrlAI,
     AgentClusterInstallK8sResource,
+    HostedClusterK8sResource,
+    NodePoolK8sResource,
 } from 'openshift-assisted-ui-lib/cim'
 import { CertificateSigningRequest, CSR_CLUSTER_LABEL } from '../certificate-signing-requests'
 import { ClusterClaim } from '../cluster-claim'
@@ -20,8 +22,6 @@ import { managedClusterSetLabel } from '../managed-cluster-set'
 import { AddonStatus } from './get-addons'
 import { getLatest } from './utils'
 import { AgentClusterInstallKind } from '../agent-cluster-install'
-import { HostedCluster } from '../hosted-cluster'
-import { NodePool } from '../node-pool'
 
 export enum ClusterStatus {
     'pending' = 'pending',
@@ -89,6 +89,7 @@ export type Cluster = {
     isHive: boolean
     isManaged: boolean
     isCurator: boolean
+    isHostedCluster: boolean
     clusterSet?: string
     owner: {
         createdBy?: string
@@ -100,8 +101,9 @@ export type Cluster = {
     kubeconfig?: string
     kubeadmin?: string
     hypershift?: {
-        nodePools: NodePool[] | undefined
-        secrets: string[]
+        agent: boolean
+        nodePools?: NodePoolK8sResource[]
+        secretNames: string[]
     }
 }
 
@@ -167,8 +169,8 @@ export function mapClusters(
     clusterClaims: ClusterClaim[] = [],
     clusterCurators: ClusterCurator[] = [],
     agentClusterInstalls: AgentClusterInstallK8sResource[] = [],
-    hostedClusters: HostedCluster[] = [],
-    nodePools: NodePool[] = []
+    hostedClusters: HostedClusterK8sResource[] = [],
+    nodePools: NodePoolK8sResource[] = []
 ) {
     const mcs = managedClusters.filter((mc) => mc.metadata?.name) ?? []
     const uniqueClusterNames = Array.from(
@@ -218,8 +220,8 @@ export function getCluster(
     clusterClaim: ClusterClaim | undefined,
     clusterCurator: ClusterCurator | undefined,
     agentClusterInstall: AgentClusterInstallK8sResource | undefined,
-    hostedCluster: HostedCluster | undefined,
-    nodePools: NodePool[] | undefined
+    hostedCluster: HostedClusterK8sResource | undefined,
+    nodePools: NodePoolK8sResource[] | undefined
 ): Cluster {
     const { status, statusMessage } = getClusterStatus(
         clusterDeployment,
@@ -261,11 +263,18 @@ export function getCluster(
         labels: managedCluster?.metadata.labels ?? managedClusterInfo?.metadata.labels,
         nodes: getNodes(managedClusterInfo),
         kubeApiServer: getKubeApiServer(clusterDeployment, managedClusterInfo, agentClusterInstall),
-        consoleURL: getConsoleUrl(clusterDeployment, managedClusterInfo, managedCluster, agentClusterInstall),
+        consoleURL: getConsoleUrl(
+            clusterDeployment,
+            managedClusterInfo,
+            managedCluster,
+            agentClusterInstall,
+            hostedCluster
+        ),
         isHive: !!clusterDeployment && !hostedCluster,
         isHypershift: !!hostedCluster,
         isManaged: !!managedCluster || !!managedClusterInfo,
         isCurator: !!clusterCurator,
+        isHostedCluster: getIsHostedCluster(managedCluster),
         isSNOCluster: getIsSNOCluster(agentClusterInstall),
         hive: getHiveConfig(clusterDeployment, clusterClaim),
         clusterSet:
@@ -285,10 +294,12 @@ export function getCluster(
             hostedCluster?.status?.kubeadminPassword?.name,
         hypershift: hostedCluster
             ? {
+                  agent: !!hostedCluster.spec.platform?.agent,
                   nodePools: clusterNodePools,
-                  secrets: [hostedCluster.spec?.sshKey?.name || '', hostedCluster.spec?.pullSecret?.name || ''].filter(
-                      (name) => !!name
-                  ),
+                  secretNames: [
+                      hostedCluster.spec?.sshKey?.name || '',
+                      hostedCluster.spec?.pullSecret?.name || '',
+                  ].filter((name) => !!name),
               }
             : undefined,
     }
@@ -387,7 +398,7 @@ export function getProvider(
     managedClusterInfo?: ManagedClusterInfo,
     managedCluster?: ManagedCluster,
     clusterDeployment?: ClusterDeployment,
-    hostedCluster?: HostedCluster
+    hostedCluster?: HostedClusterK8sResource
 ) {
     if (hostedCluster) {
         return Provider.hypershift
@@ -686,11 +697,19 @@ export function getKubeApiServer(
     )
 }
 
+const getHypershiftConsoleURL = (hostedCluster?: HostedClusterK8sResource) => {
+    if (!hostedCluster) {
+        return undefined
+    }
+    return `https://console-openshift-console.apps.${hostedCluster.metadata.name}.${hostedCluster.spec.dns.baseDomain}`
+}
+
 export function getConsoleUrl(
     clusterDeployment?: ClusterDeployment,
     managedClusterInfo?: ManagedClusterInfo,
     managedCluster?: ManagedCluster,
-    agentClusterInstall?: AgentClusterInstallK8sResource
+    agentClusterInstall?: AgentClusterInstallK8sResource,
+    hostedCluster?: HostedClusterK8sResource
 ) {
     const consoleUrlClaim = managedCluster?.status?.clusterClaims?.find(
         (cc) => cc.name === 'consoleurl.cluster.open-cluster-management.io'
@@ -700,7 +719,8 @@ export function getConsoleUrl(
         clusterDeployment?.status?.webConsoleURL ??
         managedClusterInfo?.status?.consoleURL ??
         // Temporary workaround until https://issues.redhat.com/browse/HIVE-1666
-        getConsoleUrlAI(clusterDeployment, agentClusterInstall)
+        getConsoleUrlAI(clusterDeployment, agentClusterInstall) ??
+        getHypershiftConsoleURL(hostedCluster)
     )
 }
 
@@ -736,7 +756,7 @@ export function getClusterStatus(
     clusterCurator: ClusterCurator | undefined,
     agentClusterInstall: AgentClusterInstallK8sResource | undefined,
     clusterClaim: ClusterClaim | undefined,
-    hostedCluster: HostedCluster | undefined
+    hostedCluster: HostedClusterK8sResource | undefined
 ) {
     let statusMessage: string | undefined
 
@@ -814,7 +834,7 @@ export function getClusterStatus(
         if (hostedCluster?.metadata?.deletionTimestamp) {
             return { status: ClusterStatus.destroying }
         }
-        if (hostedCluster?.status?.conditions?.find((c) => c.type === 'Available')?.status === 'False') {
+        if (hostedCluster?.status?.conditions?.find((c: any) => c.type === 'Available')?.status === 'False') {
             return { status: ClusterStatus.creating }
         }
     }
@@ -1018,5 +1038,16 @@ export function getClusterStatus(
         return { status: cdStatus, statusMessage }
     } else {
         return { status: mcStatus, statusMessage }
+    }
+}
+
+export function getIsHostedCluster(managedCluster?: ManagedCluster) {
+    if (
+        managedCluster?.metadata.annotations &&
+        managedCluster?.metadata.annotations['cluster.open-cluster-management.io/hypershiftdeployment']
+    ) {
+        return true
+    } else {
+        return false
     }
 }

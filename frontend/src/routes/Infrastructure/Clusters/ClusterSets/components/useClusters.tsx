@@ -19,13 +19,16 @@ import {
     managedClustersState,
     agentClusterInstallsState,
     clusterCuratorsState,
-    agentsState,
     hostedClustersState,
     nodePoolsState,
 } from '../../../../../atoms'
 
 // returns the clusters assigned to a ManagedClusterSet
-export function useClusters(managedClusterSet: ManagedClusterSet | undefined, clusterPool?: ClusterPool | undefined) {
+export function useClusters(
+    managedClusterSet: ManagedClusterSet | undefined,
+    clusterPool?: ClusterPool | undefined,
+    isGlobalClusterSet?: boolean
+) {
     const [
         managedClusters,
         clusterDeployments,
@@ -35,7 +38,6 @@ export function useClusters(managedClusterSet: ManagedClusterSet | undefined, cl
         clusterClaims,
         clusterCurators,
         agentClusterInstalls,
-        agents,
         hostedClusters,
         nodePools,
     ] = useRecoilValue(
@@ -48,7 +50,6 @@ export function useClusters(managedClusterSet: ManagedClusterSet | undefined, cl
             clusterClaimsState,
             clusterCuratorsState,
             agentClusterInstallsState,
-            agentsState,
             hostedClustersState,
             nodePoolsState,
         ])
@@ -57,10 +58,13 @@ export function useClusters(managedClusterSet: ManagedClusterSet | undefined, cl
     let groupManagedClusters: ManagedCluster[] = []
     let groupClusterDeployments: ClusterDeployment[] = []
 
-    if (managedClusterSet) {
-        groupManagedClusters = managedClusters.filter(
-            (mc) => mc.metadata.labels?.[managedClusterSetLabel] === managedClusterSet?.metadata.name
-        )
+    if (managedClusterSet || isGlobalClusterSet === true) {
+        groupManagedClusters =
+            isGlobalClusterSet === true
+                ? managedClusters
+                : managedClusters.filter(
+                      (mc) => mc.metadata.labels?.[managedClusterSetLabel] === managedClusterSet?.metadata.name
+                  )
         groupClusterDeployments = clusterDeployments.filter(
             (cd) =>
                 cd.metadata.labels?.[managedClusterSetLabel] === managedClusterSet?.metadata.name ||
@@ -110,8 +114,7 @@ export function useClusters(managedClusterSet: ManagedClusterSet | undefined, cl
         clusterCurators,
         agentClusterInstalls,
         hostedClusters,
-        nodePools,
-        agents
+        nodePools
     )
 
     return clusters

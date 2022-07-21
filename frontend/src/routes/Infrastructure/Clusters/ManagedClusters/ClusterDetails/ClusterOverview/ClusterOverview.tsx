@@ -259,10 +259,27 @@ export function ClusterOverviewPageContent(props: { canGetSecret?: boolean }) {
         ]
     }
 
+    if (cluster?.provider === Provider.hypershift) {
+        leftItems = [
+            clusterProperties.clusterName,
+            clusterProperties.clusterClaim,
+            clusterProperties.status,
+            clusterProperties.provider,
+            clusterProperties.distribution,
+            clusterProperties.labels,
+        ]
+        rightItems = [
+            clusterProperties.kubeApiServer,
+            clusterProperties.consoleUrl,
+            clusterProperties.credentials,
+            clusterProperties.clusterSet,
+        ]
+    }
+
     let details = <ProgressStepBar />
     if (cluster?.provider === Provider.hybrid) {
         details = <AIClusterDetails />
-    } else if (cluster?.provider === Provider.hypershift) {
+    } else if (cluster?.hypershift?.agent) {
         details = <AIHypershiftClusterDetails />
     }
 

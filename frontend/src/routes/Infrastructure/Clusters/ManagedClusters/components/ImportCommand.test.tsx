@@ -37,16 +37,18 @@ const mockCluster: Cluster = {
         isHibernatable: true,
         clusterPool: undefined,
         secrets: {
-            kubeconfig: '',
-            kubeadmin: '',
             installConfig: '',
         },
     },
     isHive: false,
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeconfig: '',
+    kubeadmin: '',
+    isHypershift: false,
 }
 
 describe('ImportCommandContainer', () => {

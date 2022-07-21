@@ -13,6 +13,7 @@ const mockClusterNoAvailable: Cluster = {
     status: ClusterStatus.ready,
     isHive: false,
     isCurator: false,
+    isHostedCluster: false,
     owner: {},
     distribution: {
         k8sVersion: '1.19',
@@ -39,12 +40,13 @@ const mockClusterNoAvailable: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isManaged: true,
     isSNOCluster: false,
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 const mockClusterReady1: Cluster = {
     name: 'cluster-1-ready1',
@@ -78,14 +80,16 @@ const mockClusterReady1: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 const mockClusterReady2: Cluster = {
     name: 'cluster-2-ready2',
@@ -119,14 +123,16 @@ const mockClusterReady2: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 const mockClusterOffline: Cluster = {
     name: 'cluster-3-offline',
@@ -160,14 +166,16 @@ const mockClusterOffline: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 
 const allClusters: Array<Cluster> = [mockClusterNoAvailable, mockClusterReady1, mockClusterReady2, mockClusterOffline]

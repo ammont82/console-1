@@ -32,16 +32,18 @@ const mockCluster: Cluster = {
         isHibernatable: true,
         clusterPool: undefined,
         secrets: {
-            kubeconfig: '',
-            kubeadmin: 'test-cluster-0-fk6c9-admin-password',
             installConfig: '',
         },
     },
     isHive: true,
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeconfig: '',
+    kubeadmin: 'test-cluster-0-fk6c9-admin-password',
+    isHypershift: false,
 }
 
 const mockKubeadminSecret = {

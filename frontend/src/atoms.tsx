@@ -1,8 +1,18 @@
 /* Copyright Contributors to the Open Cluster Management project */
-import { CIM } from 'openshift-assisted-ui-lib'
-import { HostedClusterK8sResource } from 'openshift-assisted-ui-lib/cim'
+import {
+    HostedClusterK8sResource,
+    AgentMachineK8sResource,
+    NodePoolK8sResource,
+    AgentClusterInstallK8sResource,
+    AgentK8sResource,
+    BareMetalHostK8sResource,
+    InfraEnvK8sResource,
+    InfrastructureK8sResource,
+    NMStateK8sResource,
+} from 'openshift-assisted-ui-lib/cim'
 import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
 import { atom, SetterOrUpdater, useRecoilState } from 'recoil'
+import { noop } from 'lodash'
 import { LoadingPage } from './components/LoadingPage'
 import {
     AgentClusterInstallApiVersion,
@@ -62,6 +72,7 @@ import {
     DiscoveryConfig,
     DiscoveryConfigApiVersion,
     DiscoveryConfigKind,
+    fetchGet,
     getBackendUrl,
     GitOpsCluster,
     GitOpsClusterApiVersion,
@@ -145,11 +156,14 @@ import {
     UserPreferenceKind,
     HostedClusterKind,
     HostedClusterApiVersion,
-    NodePool,
     NodePoolKind,
     NodePoolApiVersion,
+    AgentMachineApiVersion,
+    AgentMachineKind,
+    CustomResourceDefinition,
+    CustomResourceDefinitionApiVersion,
+    CustomResourceDefinitionKind,
 } from './resources'
-import { AgentMachine, AgentMachineApiVersion, AgentMachineKind } from './resources/agent-machine'
 let atomArrayKey = 0
 function AtomArray<T>() {
     return atom<T[]>({ key: (++atomArrayKey).toString(), default: [] })
@@ -161,8 +175,8 @@ export const THROTTLE_EVENTS_DELAY = 500
 export const discoveredApplicationsState = AtomArray<ArgoApplication>()
 export const discoveredOCPAppResourcesState = AtomArray<OCPAppResource>()
 
-export const agentClusterInstallsState = AtomArray<CIM.AgentClusterInstallK8sResource>()
-export const agentsState = AtomArray<CIM.AgentK8sResource>()
+export const agentClusterInstallsState = AtomArray<AgentClusterInstallK8sResource>()
+export const agentsState = AtomArray<AgentK8sResource>()
 export const ansibleJobState = AtomArray<AnsibleJob>()
 export const appProjectsState = AtomArray<IResource>()
 export const applicationSetsState = AtomArray<ApplicationSet>()
@@ -170,7 +184,7 @@ export const applicationsState = AtomArray<Application>()
 export const argoApplicationsState = AtomArray<ArgoApplication>()
 export const argoCDsState = AtomArray<IResource>()
 export const bareMetalAssetsState = AtomArray<BareMetalAsset>()
-export const bareMetalHostsState = AtomArray<CIM.BareMetalHostK8sResource>()
+export const bareMetalHostsState = AtomArray<BareMetalHostK8sResource>()
 export const certificateSigningRequestsState = AtomArray<CertificateSigningRequest>()
 export const channelsState = AtomArray<Channel>()
 export const clusterClaimsState = AtomArray<ClusterClaim>()
@@ -185,8 +199,8 @@ export const discoveredClusterState = AtomArray<DiscoveredCluster>()
 export const discoveryConfigState = AtomArray<DiscoveryConfig>()
 export const gitOpsClustersState = AtomArray<GitOpsCluster>()
 export const helmReleaseState = AtomArray<HelmRelease>()
-export const infraEnvironmentsState = AtomArray<CIM.InfraEnvK8sResource>()
-export const infrastructuresState = AtomArray<CIM.InfrastructureK8sResource>()
+export const infraEnvironmentsState = AtomArray<InfraEnvK8sResource>()
+export const infrastructuresState = AtomArray<InfrastructureK8sResource>()
 export const machinePoolsState = AtomArray<MachinePool>()
 export const managedClusterAddonsState = AtomArray<ManagedClusterAddOn>()
 export const managedClusterInfosState = AtomArray<ManagedClusterInfo>()
@@ -195,7 +209,7 @@ export const managedClusterSetsState = AtomArray<ManagedClusterSet>()
 export const managedClustersState = AtomArray<ManagedCluster>()
 export const multiClusterHubState = AtomArray<MultiClusterHub>()
 export const namespacesState = AtomArray<Namespace>()
-export const nmStateConfigsState = AtomArray<CIM.NMStateK8sResource>()
+export const nmStateConfigsState = AtomArray<NMStateK8sResource>()
 export const policiesState = AtomArray<Policy>()
 export const policyAutomationState = AtomArray<PolicyAutomation>()
 export const policySetsState = AtomArray<PolicySet>()
@@ -211,8 +225,9 @@ export const subscriptionOperatorsState = AtomArray<SubscriptionOperator>()
 export const subscriptionReportsState = AtomArray<SubscriptionReport>()
 export const userPreferencesState = AtomArray<UserPreference>()
 export const hostedClustersState = AtomArray<HostedClusterK8sResource>()
-export const nodePoolsState = AtomArray<NodePool>()
-export const agentMachinesState = AtomArray<AgentMachine>()
+export const nodePoolsState = AtomArray<NodePoolK8sResource>()
+export const agentMachinesState = AtomArray<AgentMachineK8sResource>()
+export const customResourceDefinitionsState = AtomArray<CustomResourceDefinition>()
 
 export const settingsState = atom<Settings>({ key: 'settings', default: {} })
 
@@ -298,6 +313,7 @@ export function LoadData(props: { children?: ReactNode }) {
     const [, setHostedClustersState] = useRecoilState(hostedClustersState)
     const [, setNodePoolsState] = useRecoilState(nodePoolsState)
     const [, setAgentMachinesState] = useRecoilState(agentMachinesState)
+    const [, setCustomResourceDefinitionsState] = useRecoilState(customResourceDefinitionsState)
 
     const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = useMemo(() => {
         const setters: Record<string, Record<string, SetterOrUpdater<any[]>>> = {}
@@ -358,6 +374,7 @@ export function LoadData(props: { children?: ReactNode }) {
         addSetter(HostedClusterApiVersion, HostedClusterKind, setHostedClustersState)
         addSetter(NodePoolApiVersion, NodePoolKind, setNodePoolsState)
         addSetter(AgentMachineApiVersion, AgentMachineKind, setAgentMachinesState)
+        addSetter(CustomResourceDefinitionApiVersion, CustomResourceDefinitionKind, setCustomResourceDefinitionsState)
         return setters
     }, [
         setAgentClusterInstalls,
@@ -411,6 +428,8 @@ export function LoadData(props: { children?: ReactNode }) {
         setUserPreferencesState,
         setHostedClustersState,
         setNodePoolsState,
+        setAgentMachinesState,
+        setCustomResourceDefinitionsState,
     ])
 
     useEffect(() => {
@@ -519,6 +538,13 @@ export function LoadData(props: { children?: ReactNode }) {
     }, [setSettings, setters])
 
     useEffect(() => {
+        function tokenExpired() {
+            if (process.env.NODE_ENV === 'production') {
+                logout()
+            } else {
+                window.location.href = `${getBackendUrl()}/login`
+            }
+        }
         function checkLoggedIn() {
             fetch(`${getBackendUrl()}/authenticated`, {
                 credentials: 'include',
@@ -529,20 +555,12 @@ export function LoadData(props: { children?: ReactNode }) {
                         case 200:
                             break
                         default:
-                            if (process.env.NODE_ENV === 'production') {
-                                window.location.reload()
-                            } else {
-                                window.location.href = `${getBackendUrl()}/login`
-                            }
+                            tokenExpired()
                             break
                     }
                 })
                 .catch(() => {
-                    if (process.env.NODE_ENV === 'production') {
-                        window.location.reload()
-                    } else {
-                        window.location.href = `${getBackendUrl()}/login`
-                    }
+                    tokenExpired()
                 })
                 .finally(() => {
                     setTimeout(checkLoggedIn, 30 * 1000)
@@ -564,4 +582,27 @@ export function usePolicies() {
         () => policies.filter((policy) => !policy.metadata.labels?.['policy.open-cluster-management.io/root-policy']),
         [policies]
     )
+}
+
+export async function logout() {
+    const tokenEndpointResult = await fetchGet<{ token_endpoint: string }>(getBackendUrl() + '/configure')
+    await fetchGet(getBackendUrl() + '/logout').catch(noop)
+
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('type', 'hidden')
+    iframe.name = 'hidden-form'
+    document.body.appendChild(iframe)
+
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.target = 'hidden-form'
+    const url = new URL(tokenEndpointResult.data.token_endpoint)
+    form.action = `${url.protocol}//${url.host}/logout`
+    document.body.appendChild(form)
+
+    form.submit()
+
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    location.pathname = '/'
 }

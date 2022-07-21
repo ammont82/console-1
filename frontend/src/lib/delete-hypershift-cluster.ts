@@ -13,11 +13,12 @@ import {
     NodePoolApiVersion,
     NodePoolKind,
     ResourceError,
+    ResourceErrorCode,
     SecretApiVersion,
     SecretKind,
 } from '../resources'
 
-export function deleteHypershiftCluster(cluster: Cluster) {
+export const deleteHypershiftCluster = (cluster: Cluster) => {
     const resources: IResource[] = [
         {
             apiVersion: ManagedClusterApiVersion,
@@ -43,11 +44,11 @@ export function deleteHypershiftCluster(cluster: Cluster) {
         })
     })
 
-    cluster.hypershift?.secrets?.forEach((secret) => {
+    cluster.hypershift?.secretNames?.forEach((name) => {
         resources.push({
             apiVersion: SecretApiVersion,
             kind: SecretKind,
-            metadata: { name: secret, namespace: cluster.namespace! },
+            metadata: { name, namespace: cluster.namespace! },
         })
     })
 
@@ -59,16 +60,14 @@ export function deleteHypershiftCluster(cluster: Cluster) {
     return {
         promise: new Promise((resolve, reject) => {
             promises.then((promisesSettledResult) => {
-                if (promisesSettledResult[0]?.status === 'rejected') {
-                    const error = promisesSettledResult[0].reason
-                    if (error instanceof ResourceError) {
-                        reject(promisesSettledResult[0].reason)
-                        return
+                const rejectedPromises = promisesSettledResult.filter((p) => p.status === 'rejected')
+                if (rejectedPromises.length) {
+                    const errPromise = rejectedPromises.find(
+                        (p: any) => p.reason instanceof ResourceError && p.reason.code !== ResourceErrorCode.NotFound
+                    )
+                    if (errPromise) {
+                        reject((errPromise as any).reason)
                     }
-                }
-                if (promisesSettledResult[1]?.status === 'rejected') {
-                    reject(promisesSettledResult[1].reason)
-                    return
                 }
                 resolve(promisesSettledResult)
             })

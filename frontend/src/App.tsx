@@ -46,13 +46,12 @@ import {
     AcmToastProvider,
 } from './ui-components'
 import { t } from 'i18next'
-import { noop } from 'lodash'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, Redirect, Route, RouteComponentProps, Switch, useLocation } from 'react-router-dom'
 import './App.css'
 import ACMPerspectiveIcon from './assets/ACM-icon.svg'
 import logo from './assets/RHACM-Logo.svg?url'
-import { LoadData } from './atoms'
+import { LoadData, logout } from './atoms'
 import { LoadingPage } from './components/LoadingPage'
 import { getApplinks, IAppSwitcherData } from './lib/applinks'
 import { configure } from './lib/configure'
@@ -61,8 +60,8 @@ import './lib/i18n'
 import { getMCHVersion } from './lib/mchVersion'
 import { getUsername } from './lib/username'
 import { NavigationPath } from './NavigationPath'
-import { fetchGet, getBackendUrl } from './resources'
 import { ThemeSwitcher } from './theme'
+import { checkOCPVersion, launchToOCP } from './lib/ocp-utils'
 
 // HOME
 const WelcomePage = lazy(() => import('./routes/Home/Welcome/Welcome'))
@@ -94,49 +93,6 @@ interface IRouteGroup {
     type: 'group'
     title: string
     routes: IRoute[]
-}
-
-function api<T>(url: string, headers?: Record<string, unknown>): Promise<T> {
-    return fetch(url, headers).then((response) => {
-        if (!response.ok) {
-            throw new Error(response.statusText)
-        }
-        return response.json() as Promise<T>
-    })
-}
-
-function launchToOCP(urlSuffix: string, newTab: boolean) {
-    api<{ data: { consoleURL: string } }>(
-        '/multicloud/api/v1/namespaces/openshift-config-managed/configmaps/console-public/'
-    )
-        .then(({ data }) => {
-            if (newTab) {
-                window.open(`${data.consoleURL}/${urlSuffix}`)
-            } else {
-                location.href = `${data.consoleURL}/${urlSuffix}`
-            }
-        })
-        .catch((error) => {
-            // eslint-disable-next-line no-console
-            console.error(error)
-        })
-}
-
-function checkOCPVersion(switcherExists: (arg0: boolean) => void) {
-    if (process.env.NODE_ENV === 'test') return
-    api<{ gitVersion: string }>('/multicloud/version/')
-        .then(({ gitVersion }) => {
-            if (parseFloat(gitVersion.substr(1, 4)) >= 1.2) {
-                switcherExists(true)
-            } else {
-                switcherExists(false)
-            }
-        })
-        .catch((error) => {
-            // eslint-disable-next-line no-console
-            console.error(error)
-            switcherExists(false)
-        })
 }
 
 function UserDropdownToggle() {
@@ -212,29 +168,6 @@ function UserDropdown() {
                 // eslint-disable-next-line no-console
                 console.error(error)
             })
-    }
-
-    async function logout() {
-        const tokenEndpointResult = await fetchGet<{ token_endpoint: string }>(getBackendUrl() + '/configure')
-        await fetchGet(getBackendUrl() + '/logout').catch(noop)
-
-        const iframe = document.createElement('iframe')
-        iframe.setAttribute('type', 'hidden')
-        iframe.name = 'hidden-form'
-        document.body.appendChild(iframe)
-
-        const form = document.createElement('form')
-        form.method = 'POST'
-        form.target = 'hidden-form'
-        const url = new URL(tokenEndpointResult.data.token_endpoint)
-        form.action = `${url.protocol}//${url.host}/logout`
-        document.body.appendChild(form)
-
-        form.submit()
-
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        location.pathname = '/'
     }
 
     function LogoutButton() {
@@ -381,7 +314,7 @@ export default function App() {
                         component: Automations,
                     },
                     {
-                        title: 'Infrastructure environments',
+                        title: 'Host inventory',
                         type: 'route',
                         route: NavigationPath.infraEnvironments,
                         component: InfraEnvironments,
@@ -690,7 +623,7 @@ function AppSidebar(props: { routes: (IRoute | IRouteGroup)[] }) {
                                     isActive={!!route.routes.find((route) => location.pathname === route.route)}
                                 >
                                     {route.routes.map((route) => (
-                                        <NavItem key={route.route} isActive={location.pathname === route.route}>
+                                        <NavItem key={route.route} isActive={location.pathname.startsWith(route.route)}>
                                             <Link to={route.route}>{route.title}</Link>
                                         </NavItem>
                                     ))}

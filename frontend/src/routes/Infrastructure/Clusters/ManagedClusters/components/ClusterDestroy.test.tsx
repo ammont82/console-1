@@ -30,13 +30,15 @@ const mockDestroyCluster: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isHive: false,
     isManaged: true,
+    isHostedCluster: false,
     isSNOCluster: false,
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 
 const mockDetachCluster: Cluster = {
@@ -59,15 +61,17 @@ const mockDetachCluster: Cluster = {
         clusterPool: undefined,
         secrets: {
             installConfig: '',
-            kubeadmin: '',
-            kubeconfig: '',
         },
     },
     isHive: false,
     isManaged: true,
     isCurator: false,
+    isHostedCluster: false,
     isSNOCluster: false,
     owner: {},
+    kubeadmin: '',
+    kubeconfig: '',
+    isHypershift: false,
 }
 
 describe('ClusterDestroy', () => {

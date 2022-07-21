@@ -70,43 +70,6 @@ const HostsForm: React.FC<HostsFormProps> = ({ control, handleChange }) => {
         },
     ]
 
-    /*
-    control.reverse = (
-        control: {
-            active: FormControl['active']
-        },
-        templateObject: any
-    ) => {
-        const yamlNodePools = templateObject.NodePool?.map((np: any) => np['$raw']);
-        const active = {
-            ...control.active,
-            agentNamespace: getValue(templateObject, 'HostedCluster[0].spec.platform.agent.agentNamespace'),
-            nodePools: yamlNodePools?.map((np: any) => {
-                const name = np.metadata.name;
-                const formNodePool = nodePools?.find((n) => n.name === name)
-                return {
-                    name,
-                    clusterName,
-                    releaseImage: np.spec.release.image || initReleaseImage,
-                    count: np.spec.replicas,
-                    agentLabels: formNodePool?.agentLabels || [],
-                    autoSelectedAgentIDs: formNodePool?.autoSelectedAgentIDs || [],
-                    autoSelectHosts: formNodePool?.autoSelectHosts === undefined ? true : formNodePool?.autoSelectHosts,
-                    selectedAgentIDs: formNodePool?.selectedAgentIDs || [],
-                }
-            }) || []
-        }
-
-        if (!isEqual(active, control.active)) {
-            control.active = active
-        }
-
-        if (formRef.current && !isEqual(active, formRef.current.values)) {
-            formRef.current.setValues(active)
-        }
-    }
-    */
-
     return agents ? (
         <HostedClusterHostsStep
             formRef={formRef}

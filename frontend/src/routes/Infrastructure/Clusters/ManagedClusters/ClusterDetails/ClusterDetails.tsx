@@ -11,7 +11,12 @@ import {
     AcmSecondaryNavItem,
     Provider,
 } from '../../../../../ui-components'
-import { AgentClusterInstallK8sResource, AgentK8sResource, InfraEnvK8sResource } from 'openshift-assisted-ui-lib/cim'
+import {
+    AgentClusterInstallK8sResource,
+    AgentK8sResource,
+    HostedClusterK8sResource,
+    InfraEnvK8sResource,
+} from 'openshift-assisted-ui-lib/cim'
 import { createContext, Fragment, Suspense, useEffect, useState } from 'react'
 import { Link, Redirect, Route, RouteComponentProps, Switch, useHistory, useLocation } from 'react-router-dom'
 import { useRecoilValue, waitForAll } from 'recoil'
@@ -42,7 +47,6 @@ import {
     ClusterDeployment,
     ClusterStatus,
     getCluster,
-    HostedCluster,
     mapAddons,
     ResourceError,
     SecretDefinition,
@@ -64,7 +68,7 @@ export const ClusterContext = createContext<{
     readonly agentClusterInstall?: AgentClusterInstallK8sResource
     // readonly infraEnv?: InfraEnvK8sResource
     readonly infraEnvAIFlow?: InfraEnvK8sResource
-    readonly hostedCluster?: HostedCluster
+    readonly hostedCluster?: HostedClusterK8sResource
 }>({
     cluster: undefined,
     addons: undefined,
@@ -151,8 +155,7 @@ export default function ClusterDetailsPage({ match }: RouteComponentProps<{ id: 
         clusterCurator,
         agentClusterInstall,
         hostedCluster,
-        nodePools,
-        agents
+        nodePools
     )
     const prevCluster = usePrevious(cluster)
     const showMachinePoolTab = cluster.isHive && cluster.isManaged && cluster.provider !== Provider.baremetal
@@ -201,7 +204,7 @@ export default function ClusterDetailsPage({ match }: RouteComponentProps<{ id: 
             />
         )
     }
-    if (cluster?.hive.secrets?.installConfig || cluster?.kubeconfig) {
+    if (cluster?.hive.secrets?.installConfig || (cluster?.kubeconfig && cluster.provider !== Provider.hypershift)) {
         clusterActionGroupChildren.push(<DownloadConfigurationDropdown canGetSecret={canGetSecret} />)
     }
     if (getClusterActions(cluster).length > 0) {

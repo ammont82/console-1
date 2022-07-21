@@ -34,14 +34,14 @@ const HypershiftKubeAPI = ({ hostedCluster }: HypershiftKubeAPIProps) => {
             }
         }
         hypershiftKubeconfig && fetchKubeconfig()
-    }, [hypershiftKubeconfig])
+    }, [hypershiftKubeconfig, hostedCluster?.metadata.namespace])
 
     return hypershiftKubeAPI ? (
         <AcmInlineCopy text={hypershiftKubeAPI} id="kube-api-server" />
     ) : error ? (
-        'Failed to fetch kubeconfig'
+        <>'Failed to fetch kubeconfig'</>
     ) : (
-        '-'
+        <>'-'</>
     )
 }
 

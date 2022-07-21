@@ -143,7 +143,7 @@ export default function CreateClusterPage() {
         if (resourceJSON) {
             const { createResources } = resourceJSON
             const map = keyBy(createResources, 'kind')
-            const cluster = get(map, 'ClusterDeployment') || get(map, 'HostedCluster')
+            const cluster = map?.ClusterDeployment || map?.HostedCluster
             const clusterName = cluster?.metadata?.name
 
             // return error if cluster name is already used
@@ -157,36 +157,6 @@ export default function CreateClusterPage() {
                 })
                 return 'ERROR'
             } else {
-                /*
-                // patch hypershift agents
-                const hypershiftAgentNs = get(map, 'HostedCluster.spec.platform.agent.agentNamespace')
-                if (hypershiftAgentNs) {
-                    setCreationStatus({ status: 'IN_PROGRESS', messages: ['Patching hosts...'] })
-                    const nodePoolPatches = hypershiftValues.nodePools?.map(
-                        ({ manualHostSelect, autoSelectedAgentIDs, selectedAgentIDs, clusterName, name }) => {
-                            const requestedAgentIDs = manualHostSelect ? selectedAgentIDs : autoSelectedAgentIDs
-                            const agentsToPatch = agents.filter((a) => requestedAgentIDs.includes(a.metadata.uid))
-                            return agentsToPatch.map(
-                                (a) =>
-                                    patchResource(a, [
-                                        {
-                                            op: a.metadata.labels ? 'replace' : 'add',
-                                            path: '/metadata/labels',
-                                            value: {
-                                                ...(a.metadata.labels || {}),
-                                                'agentclusterinstalls.extensions.hive.openshift.io/nodePool': name,
-                                                'agentclusterinstalls.extensions.hive.openshift.io/nodePoolNs':
-                                                    clusterName,
-                                            },
-                                        },
-                                    ]).promise
-                            )
-                        }
-                    )
-                    nodePoolPatches && (await Promise.allSettled(nodePoolPatches))
-                }
-                */
-
                 const isClusterCurator = (resource: any) => {
                     return resource.kind === 'ClusterCurator'
                 }
